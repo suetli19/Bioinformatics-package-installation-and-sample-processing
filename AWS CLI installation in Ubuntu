@@ -1,1 +1,25 @@
+### install aws cli in ubuntu
 
+1. Install unzip first
+sudo apt install unzip
+
+2. Download the installation file
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+
+3. Unzip installer
+unzip awscliv2.zip
+
+4. Run the install program
+sudo ./aws/install
+ 
+5. Check aws path
+which aws
+
+6. Check aws version and confirm installation
+aws --version
+
+7. Configure aws by pasting the credentials in terminal (setting environment)
+#from aws account
+
+8. Check if the aws environment is set
+aws s3 ls       ##if gives error on RequestTimeSkewed, shut down ubuntu first by wsl --shutdown in windows powershell terminal and restart to synchronize the time
