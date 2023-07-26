@@ -1,0 +1,5 @@
+#Install siamcat using R 4.3.0
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("SIAMCAT")
