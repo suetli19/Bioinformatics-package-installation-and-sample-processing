@@ -1,0 +1,5 @@
+#install graphlan using conda (required python 2.7)
+conda create -n my_env python=2.7
+conda activate my_env
+conda install -c bioconda graphlan
+conda install -c bioconda export2graphlan
