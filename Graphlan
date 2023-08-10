@@ -5,5 +5,24 @@ conda activate graphlan_env
 conda install -c bioconda graphlan
 conda install -c bioconda export2graphlan
 
-#install and run lefse using conda to produce input for graphlan
+#install and run lefse using conda to produce input for graphlan (install lefse in the same conda environment 'graphlan_env' that was being created earlier)
 conda install -c bioconda lefse
+
+
+#run graphlan in bash ubuntu terminal (installed export2graphlan, lefse and graphlan in ubuntu --python2.7, installed in the environment graphlan_env) --tutorial in:
+#a. https://github.com/biobakery/graphlan/wiki/export2graphlan---tutorial 
+#b. https://ycl6.github.io/16S-Demo/3_lefse_tutorial.html#Prepare_LEfSe_input
+
+#format input file that's supported graphlan
+lefse-format_input.py Edge_lefse.txt Edge_iletis.in -c 1 -s 2 -u 3 -o 1000000
+
+run_lefse.py Edge_iletis.in Edge_iletis.res -l 4
+
+#--biomarkers2colors 'iletis_color.txt' to annotate the colours for different disease categories
+export2graphlan.py -i Edge_lefse.txt -o Edge_iletis.res -t tree.txt -a annot.txt --title "Phylogenetic tree of taxa for IBD and healthy group" --annotations 2,5 --external_annotations 6,7 --fname_row 0 --skip_rows 1,2 --ftop 200 --biomarkers2colors iletis_colour.txt --max_font_size 6 --annotation_legend_font_size 10
+
+
+graphlan_annotate.py --annot annot.txt tree.txt outtree.txt
+
+
+graphlan.py --dpi 300 --size 7.0 outtree.txt outimg.png 
