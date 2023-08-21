@@ -1,0 +1,68 @@
+# This is the guide to install and run kneaddata v0.12.0, MetaPhlAn version 4.0.6 (1 Mar 2023) and humann v3.8 for shotgun data (last updated 21/8/23)
+
+# Install kneaddata for qc
+1. Download kneaddata - Create a clone of the repository
+git clone https://github.com/biobakery/kneaddata.git
+
+2. Change directory
+cd kneaddata
+
+3. Install kneaddata
+python setup.py install
+
+4. Download human reference database
+cd ./kneaddata/human_database
+kneaddata_database --download human_genome bowtie2 /home/suetli/kneaddata/human_database
+
+5. Check version
+kneaddata --version
+
+
+6. Run paired samples
+kneaddata --input1 seq1.fastq --input2 seq2.fastq -db /home/suetli/kneaddata/human_database --output kneaddata_output
+
+
+
+#check python version
+python --version
+
+#install metaphlan4 using conda
+conda create -n metaphlan4 -c conda-forge -c bioconda python=3.9 metaphlan
+
+# activate metaphlan4
+conda activate metaphlan4
+
+
+#download metaphlan database --prior to that, create new folder called metaphlan_databases
+metaphlan --install --bowtie2db ./metaphlan_databases
+
+
+#run metaphlan4 for single sample from kneaddata output (test run)
+metaphlan ./pmi/AMD0004q_S23.fastq --nproc 32 --input_type fastq --bowtie2db ./metaphlan_databases --unclassified_estimation -o AMD0004q_S23.txt
+
+
+
+###### run for all samples --not enough memory
+
+#Run metaphlan4 for multiple samples (19 samples)
+metaphlan ~/pmi/*.fastq --nproc 32 --input_type fastq --bowtie2db ~/metaphlan_databases --unclassified_estimation -o meta4.txt
+
+
+
+#### install humann ###
+1. download humann
+git clone https://github.com/biobakery/humann 
+
+2. install humann
+cd /home/suetli/humann
+
+python setup.py install 
+
+3. download humann database (nucleotide and protein)
+humann_databases --download chocophlan full /home/suetli/humann/nucleotide_database
+
+humann_databases --download uniref uniref90_diamond /home/suetli/humann/protein_database
+
+
+
+
