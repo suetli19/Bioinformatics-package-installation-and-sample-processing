@@ -42,26 +42,31 @@ metaphlan ./pmi/AMD0004q_S23.fastq --nproc 32 --input_type fastq --bowtie2db ./m
 
 
 
-###### run for all samples --not enough memory
+###### run for all samples
 
 #Run metaphlan4 for multiple samples (19 samples)
 metaphlan ~/pmi/*.fastq --nproc 32 --input_type fastq --bowtie2db ~/metaphlan_databases --unclassified_estimation -o meta4.txt
 
 
 
-#### install humann ###
-1. download humann
-git clone https://github.com/biobakery/humann 
+#### humann --install in metaphlan4 conda env
+#install specific humann version
+conda install -c bioconda humann=3.6
 
-2. install humann
+#file and database directory
 cd /home/suetli/humann
 
-python setup.py install 
-
-3. download humann database (nucleotide and protein)
+#download nucleotide and protein databases into specified directory
 humann_databases --download chocophlan full /home/suetli/humann/nucleotide_database
 
 humann_databases --download uniref uniref90_diamond /home/suetli/humann/protein_database
+
+
+#activate metaphlan4 conda environment and run humann inside 
+conda activate metaphlan4
+
+#run humann (two input files needed: 1. fastq file from kneaddata output and 2. metaphlan.txt from metaphlan4 output)
+humann --input ./B067DOL041T1.fastq --output ./test --o-log ./test/B067DOL041T1.log --taxonomic-profile ./B067DOL041T1_metaphlan.txt --protein-database ./protein_database/uniref/ --nucleotide-database ./nucleotide_database/chocophlan/ --threads 32
 
 
 
