@@ -2,8 +2,8 @@
 
 FROM python:3.10.9
 
-LABEL maintainer="JIAJUN LIU"
-LABEL description="AMILI shotgun metaphlan4"
+LABEL maintainer="SL"
+LABEL description="shotgun metaphlan4"
 
 ENV RELEASE_DATE=2023.09.30 \
 	TZ=Asia/Singapore
