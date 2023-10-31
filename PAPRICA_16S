@@ -1,1 +1,296 @@
+#after installation and everything, then do the things below in terminal:
+
+export PATH=$PATH:/home/suetli/paprica/infernal/binaries
+cd /home/suetli/paprica/ref_genome_database
+
+#move epa-ng and gappa to infernal binaries, then only run
+paprica-run.sh test bacteria  #will give many outputs
+
+#paprica testrun using sra from the tutorial
+
+parallel fastq-dump --split-files --skip-technical {} < paprica_test_SRR_Acc_List.txt
+
+#run DADA2 #this is a R script, DO NOT ctrl enter, just copy and paste the script
+#!/usr/bin/Rscript
+
+# See tutorial at https://benjjneb.github.io/dada2/tutorial.html.  This script will
+# QC and identify valid unique reads, then assemble.  It will execute on all files in
+# the directory "multiplexed", and create the directories "filtered", and "merged".
+# The Python script deunique_dada2.py should be used to inflate all of the output tables
+# into redundant fasta files for paprica.
+
+library(dada2)
+
+path <- "~/paprika_amili_test/batch33_16s"
+gene <- '16S'
+
+
+fnFs <- sort(list.files(path, pattern = '_1.fq', full.names = T))
+fnRs <- sort(list.files(path, pattern = '_2.fq', full.names = T))
+
+
+pdf(paste0(path, '/', 'quality_profiles1.pdf'), width = 6, height = 6)
+
+for(i in 1:length(fnFs)){
+	print(plotQualityProfile(fnFs[i]))
+	print(plotQualityProfile(fnRs[i]))
+}
+	
+dev.off()
+
+# Extract sample names, assuming filenames have format: SAMPLENAME_XXX.fastq
+sample.names <- sapply(strsplit(basename(fnFs), "_"), `[`, 1)
+
+file_path <- file.path(paste0(path, '/','filtered')) # Place filtered files in filtered/ subdirectory
+filtFs <- file.path(file_path, paste0(sample.names, "_R1.filt.fastq.gz"))
+filtRs <- file.path(file_path, paste0(sample.names, "_R2.filt.fastq.gz"))
+
+
+## multithreading only useful if multiple fastq files
+
+out <- filterAndTrim(fnFs,
+	filtFs,
+	fnRs,
+	filtRs,
+	multithread = T,
+	trimLeft = c(10, 10),
+	truncLen = c(220, 220),
+	verbose = T)
+
+plotQualityProfile(filtFs[1:4])
+
+## need distribution of lengths for filtFs and filtRs
+	
+errF <- learnErrors(filtFs, multithread=TRUE)
+errR <- learnErrors(filtRs, multithread=TRUE)
+
+pdf(paste0(path, '/', 'error_rates.pdf'), width = 6, height = 6)
+print(plotErrors(errF, nominalQ = T))
+print(plotErrors(errR, nominalQ = T))
+dev.off()
+
+derepFs <- derepFastq(filtFs, verbose = T)
+derepRs <- derepFastq(filtRs, verbose = T)
+
+## wouldn't it make more sense to assemble here?
+
+names(derepFs) <- sample.names
+names(derepRs) <- sample.names
+
+dadaFs <- dada(derepFs, err=errF, multithread=TRUE)
+dadaRs <- dada(derepRs, err=errR, multithread=TRUE)
+
+mergers <- mergePairs(dadaFs,
+                      derepFs,
+                      dadaRs,
+                      derepRs,
+                      maxMismatch = 0,
+                      verbose=TRUE)
+
+## ZymoBIOMICS Microbial Community Standard should have 8 bacterial strains, 2 fungal strains,
+## so if you have more than 10 strains you probably QC'd insufficiently.
+
+## Above method still produces reads of different lengths after merge.  Generate a function to
+## evaluate distribution of read lengths and eliminate anything that is not correct length.
+
+check.length <- function(mergers){
+  for(name in names(mergers)){
+    try({
+      print(name)
+      temp <- mergers[[name]]
+      temp.lengths <- unlist(lapply(temp$sequence, nchar))
+      temp.lengths.expand <- rep(temp.lengths, temp$abundance)
+      hist(data.matrix(temp.lengths.expand), breaks = 100)
+    
+      temp[, 'length'] = temp.lengths
+      mergers[[name]] = temp
+    }, silent = T)
+  }
+  return(mergers)
+}
+
+mergers <- check.length(mergers)
+
+## Write fasta file for all reads at the expected read length.
+## Not currently limiting to expected read length.
+
+read.length <- 223
+
+dir.create(paste0(path, '/', 'merged'))
+
+for(name in names(mergers)){
+#  temp <- mergers[[name]]
+#  temp <- temp[which(temp$length == read.length),]
+#  print(c(name, sum(temp$abundance[which(temp$length == read.length)])))
+	write.csv(mergers[[name]], paste0(path, '/merged/', name, '.', gene, '.csv'), quote = F, row.names = F)
+}
+
+#external to the script; my own one
+library("seqRFLP")
+library(seqinr)
+
+merged_1 <- read.csv("SRR7633180.18S.csv")
+merged_1 <- rownames_to_column(merged_1, var = "number")
+merged_1$number <- paste0('SRR7633180_', merged_1$number)
+df <- data.frame(merged_1$number,merged_1$sequence)
+df.fasta = dataframe2fas(df, file="SRR7633180.fasta")
+
+
+
+#Merged reads should be inflated to redundant fasta files before analysis with paprica
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sun Jan 07 13:22:11 2018
+
+@author: jeff
+"""
+
+#remember to type 'python' in the terminal before starting to run python script
+import pandas as pd
+import sys
+
+name = sys.argv[1]
+name = name[0:-4]
+
+read_table = pd.read_csv(name + '.csv')
+l = 0
+a = 0
+
+with open(name + '.exp.fasta', 'w') as exp_out, open(name + '.uni.fasta', 'w') as uni_out:
+    for index, row in read_table.iterrows():
+        a = a + row.abundance
+        l = l + 1
+        
+        print('>' + str(index) + '_unique', file = uni_out)
+        print(row.sequence, file=uni_out)
+        
+        for i in range(1, row.abundance):
+            print('>' + str(index) + '_' + str(i), file = exp_out)
+            print(row.sequence, file = exp_out)
+            
+print(name, l, a)
+
+
+#use this for deunique in terminal; rmb to execute the command first (chmod a+x dada2_deunique_rev.py) ls -lh
+for csvfile in /home/suetli/paprica_test/demultiplexed/merged/csv/*.csv;
+do
+python3 dada2_deunique_rev.py "$csvfile" >> /home/suetli/paprica_test/demultiplexed/merged/csv/output_deunique$csvfile
+done
+
+for csvfile in /home/suetli/paprika_amili_test/batch33_16s/merged/*.csv;
+do
+python3 dada2_deunique_rev.py "$csvfile" 
+done
+
+#get ready to execute paprika
+for f in *.exp.fasta; do printf '%s\n' "${f%.fasta}" >> samples.txt; done
+
+#run paprika
+while read f; do ./paprica-run.sh $f bacteria; done < samples.txt
+
+pip install pandas
+pip install termcolor
+
+~/paprica/paprica-combine_results.py -domain bacteria -o 17.01.2022_batch33.amili.paprika
+ 
+## ./ = current directory
+   ~/ = home directory
+
+cd /home/suetli/.local/share/r-miniconda/envs/r-reticulate/bin/python3
+help('modules') #python script
+
+
+###ANOTHER ALTERNATIVE
+## Above method still produces reads of different lengths after merge.  Generate a function to
+## evaluate distribution of read lengths and eliminate anything that is not correct length.
+
+check.length <- function(mergers){
+  for(name in names(mergers)){
+    try({
+      print(name)
+      temp <- mergers[[name]]
+      temp.lengths <- unlist(lapply(temp$sequence, nchar))
+      temp.lengths.expand <- rep(temp.lengths, temp$abundance)
+      hist(data.matrix(temp.lengths.expand), breaks = 100)
+      
+      temp[, 'length'] = temp.lengths
+      mergers[[name]] = temp
+    }, silent = T)
+  }
+  return(mergers)
+}
+
+mergers <- check.length(mergers)
+
+#create directory and put merged reads in there
+dir.create(paste0(path, '/', 'merged'))
+
+for(name in names(mergers)){
+  write.csv(mergers[[name]], paste0(path, '/merged/', name, '.csv'), quote = F, row.names = F)
+}
+
+
+#another alternative
+mergers$length <- unlist(lapply(mergers$sequence, nchar))
+
+#save to csv file
+write.csv(mergers, './merged/BM001448.csv', quote = F, row.names = F)
+
+#Merged reads should be inflated to redundant fasta files before analysis with paprica
+#use dada2_deunique_rev.py
+
+#remember to type 'python' in the terminal before starting to run python script (in this case, not needed as we run everything in terminal)
+#just execute python script using chmod a+x in terminal
+#use this for deunique in terminal; rmb to execute the command first 
+chmod a+x dada2_deunique_rev.py
+
+#check list
+ls -lh
+
+#if error message occured relating to importing package, do this
+pip install pandas
+pip install termcolor
+
+#error of ModuleNotFoundError: No module named 'six' in Python when running paprica-run.sh, so I install it in the terminal using this - conda install -c conda-forge six AND THEN IT WORKS. If module not found error, just try to install the module either by pip/pip3/conda. pip depends on the python version and whether pip package is found. 
+
+#then only run deunique
+for csvfile in /home/suetli/country_meta_analysis/dada.ps/SG_amili/cutadapt/filtered/merged/*.csv;
+do
+python3 /home/suetli/dada2_deunique_rev.py "$csvfile";
+done
+
+#get ready to execute paprika/include only exp.fasta and put this list to samples.txt
+cd /home/suetli/gmhi/public_16s_NEW/loop2/PRJNA682730/merged
+
+for f in *.exp.fasta; do printf '%s\n' "${f%.fasta}" >> samples.txt; done
+
+
+#export path, then check if they are present (e.g. type 'which cmalign' in terminal)
+export PATH=$PATH:/home/suetli/paprica
+export PATH=$PATH:/home/suetli/paprica/infernal/binaries
+export PATH=$PATH:/home/suetli/paprica/infernal/easel
+export PATH=$PATH:/home/suetli/paprica/raxml-ng
+export PATH=$PATH:/home/suetli/paprica/epa-ng/bin    
+export PATH=$PATH:/home/suetli/paprica/gappa/bin     
+
+
+## change working directory to where the samples.txt is located, 
+##in this case, the working directory is: 
+/home/suetli//gmhi/public_16s_NEW/PRJEB21933/merged
+
+#then only run paprika, follow the directory where paprica-run.sh is located
+while read f; do /home/suetli/paprica/paprica-run.sh $f bacteria; done < /home/suetli/country_meta_analysis/dada.ps/SG_amili/cutadapt/filtered/merged/paprica/samples.txt
+
+#this is for the left out samples unprocessed by paprica
+while read f; do /home/suetli/gmhi/public_16s_NEW/PRJEB21933/merged/paprica-run.sh $f bacteria; done < samples_remaining.txt
+
+#to run individual sample
+/home/suetli/gmhi/public_16s_NEW/PRJEB21933/merged/paprica-run.sh ERR3618989.exp bacteria
+
+#count number of folders
+ls -l | grep -c ^d
+
+#combine all samples
+/home/suetli/paprica/paprica-combine_results.py -domain bacteria -o cma_paprica_sg
 
