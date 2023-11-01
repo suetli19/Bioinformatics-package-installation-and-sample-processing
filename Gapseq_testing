@@ -1,0 +1,24 @@
+#this bash script intends to run gapseq of an example genome from genbank to validate its functionality. 
+
+#change directory to gapseq
+cd ./gapseq
+
+#Set path
+export PATH=/home/suetli19/gapseq:$PATH
+
+#check path
+which ./gapseq find -p all toy/myb71.fna.gzgapseq
+
+#download f.prausnitzii from genbank to local folder - DS483503.1 Faecalibacterium prausnitzii M21/2 Scfld_02_24 genomic scaffold, whole genome shotgun sequence (https://www.ncbi.nlm.nih.gov/datasets/genome/GCF_000154385.1/)
+
+#zip the fasta file if needed (optional)
+#tar -czvf bifido.fna.gz ./bifido.fna
+
+#run gapseq #the fasta file is renamed to ASM15438_genomic.fna
+#gapseq find -p all is to predict functional pathways 
+gapseq find -p all -b 200 -m Bacteria ASM15438_genomic.fna
+
+#gapseq find-transport is to predict transporters
+gapseq find-transport Bacteria ASM15438_genomic.fna
+
+### move on to draft network reconstruction and gapfilling
