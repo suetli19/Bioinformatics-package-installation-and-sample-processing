@@ -1,4 +1,4 @@
-#this bash script intends to run gapseq of an example genome from genbank to validate its functionality. 
+#this bash script intends to run gapseq of an example genome from genbank to validate its functionality. Assume that gapseq has been installed in ubuntu. 
 
 #change directory to gapseq
 cd ./gapseq
@@ -7,7 +7,7 @@ cd ./gapseq
 export PATH=/home/suetli19/gapseq:$PATH
 
 #check path
-which ./gapseq find -p all toy/myb71.fna.gzgapseq
+which gapseq
 
 #download f.prausnitzii from genbank to local folder - DS483503.1 Faecalibacterium prausnitzii M21/2 Scfld_02_24 genomic scaffold, whole genome shotgun sequence (https://www.ncbi.nlm.nih.gov/datasets/genome/GCF_000154385.1/)
 
@@ -15,10 +15,10 @@ which ./gapseq find -p all toy/myb71.fna.gzgapseq
 #tar -czvf bifido.fna.gz ./bifido.fna
 
 #run gapseq #the fasta file is renamed to ASM15438_genomic.fna
-#gapseq find -p all is to predict functional pathways 
+# 1. gapseq find -p all is to predict functional pathways 
 gapseq find -p all -b 200 -m Bacteria ASM15438_genomic.fna
 
-#gapseq find-transport is to predict transporters
-gapseq find-transport Bacteria ASM15438_genomic.fna
+# 2. gapseq find-transport is to predict transporters
+gapseq find-transport -b 200 ASM15438_genomic.fna
 
 ### move on to draft network reconstruction and gapfilling
