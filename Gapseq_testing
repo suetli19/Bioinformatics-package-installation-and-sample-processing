@@ -21,4 +21,7 @@ gapseq find -p all -b 200 -m Bacteria ASM15438_genomic.fna
 # 2. gapseq find-transport is to predict transporters
 gapseq find-transport -b 200 ASM15438_genomic.fna
 
-### move on to draft network reconstruction and gapfilling
+#3. Build draft model based on pathway, reactions and transporter prediction
+gapseq draft -r ASM15438_genomic-all-Reactions.tbl -t ASM15438_genomic-Transporter.tbl -p ASM15438_genomic-all-Pathways.tbl -c ASM15438_genomic.fna -u 200 -l 100
+
+### move on to gapfilling
