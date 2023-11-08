@@ -1,1 +1,155 @@
+###Script to install Gapseq in Ubuntu
+##Original documentation: https://gapseq.readthedocs.io/en/latest/install.html
+## GitHub: https://github.com/jotech/gapseq/tree/master
 
+# Installation of main system dependencies
+sudo apt install ncbi-blast+ git libglpk-dev r-base-core exonerate bedtools barrnap bc parallel curl libcurl4-openssl-dev libssl-dev libsbml5-dev bc
+
+# installation of required R-packages (this script is run in R version 4.1.2)
+R 
+install.packages(c("data.table", "stringr", "getopt", "doParallel", "foreach", "R.utils", "stringi", "glpkAPI", "CHNOSZ", "jsonlite", "httr")
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+BiocManager::install("Biostrings")
+
+#install sybil
+wget https://cran.r-project.org/src/contrib/Archive/sybil/sybil_2.2.0.tar.gz
+wget https://cran.r-project.org/src/contrib/Archive/sybilSBML/sybilSBML_3.1.2.tar.gz
+R CMD INSTALL sybil_2.2.0.tar.gz
+R CMD INSTALL sybilSBML_3.1.2.tar.gz
+rm sybil_2.2.0.tar.gz
+rm sybilSBML_3.1.2.tar.gz
+
+#install gapseq
+wget https://github.com/jotech/gapseq/archive/refs/tags/v1.2.tar.gz
+tar xvzf v1.2.tar.gz
+mv gapseq-1.2/ gapseq
+cd gapseq
+
+#test installation
+./gapseq test
+
+
+
+### Script for gapseq tutorial - https://gapseq.readthedocs.io/en/latest/tutorials/crossfeeding.html
+
+#download genome assemblies 
+wget ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/020/605/GCF_000020605.1_ASM2060v1/GCF_000020605.1_ASM2060v1_genomic.fna.gz
+wget ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/007/525/GCF_000007525.1_ASM752v1/GCF_000007525.1_ASM752v1_genomic.fna.gz
+
+#download gapfill-medium file
+wget https://github.com/Waschina/gapseq.tutorial.data/raw/master/CF_eure_bilo/gf_medium.csv
+
+#rename genomes to "eure" (E. rectale) and "bilo" (B. longum) 
+mv GCF_000020605.1_ASM2060v1_genomic.fna.gz eure.fna.gz
+mv GCF_000007525.1_ASM752v1_genomic.fna.gz bilo.fna.gz
+
+modelA="eure"
+modelB="bilo"
+
+#if not set already (e.g via .bashrc): set the path to gapseq
+export PATH=/home/suetli19/gapseq:$PATH 
+which gapseq  #check path 
+
+# install locale "en_US.UTF-8" in Ubuntu system before running the rest of the codes as they require English UTF-8 locale. 
+sudo locale-gen en_US.UTF-8
+
+# Reaction & Pathway prediction
+$gapseq find -p all -b 200 -m Bacteria $modelA.fna.gz
+$gapseq find -p all -b 200 -m Bacteria $modelB.fna.gz
+
+# Transporter prediction
+$gapseq find-transport -b 200 $modelA.fna.gz 
+$gapseq find-transport -b 200 $modelB.fna.gz
+
+# Building Draft Model - based on Reaction-, Pathway-, and Transporter prediction
+$gapseq draft -r $modelA-all-Reactions.tbl -t $modelA-Transporter.tbl -p $modelA-all-Pathways.tbl -c $modelA.fna.gz -u 200 -l 100
+$gapseq draft -r $modelB-all-Reactions.tbl -t $modelB-Transporter.tbl -p $modelB-all-Pathways.tbl -c $modelB.fna.gz -u 200 -l 100
+
+# Gapfilling
+$gapseq fill -m $modelA-draft.RDS -n gf_medium.csv -c $modelA-rxnWeights.RDS -g $modelA-rxnXgenes.RDS -b 100
+$gapseq fill -m $modelB-draft.RDS -n gf_medium.csv -c $modelB-rxnWeights.RDS -g $modelB-rxnXgenes.RDS -b 100
+
+# Install and load R-packages
+wget https://cran.r-project.org/src/contrib/Archive/BacArena/BacArena_1.8.tar.gz
+wget https://cran.r-project.org/src/contrib/Archive/sybil/sybil_2.2.0.tar.gz
+
+R
+install.packages("./BacArena_1.8.tar.gz", repos = NULL, type = "source", dependencies = TRUE)
+library(BacArena)
+
+install.packages("./sybil_2.2.0.tar.gz", repos = NULL, type = "source", dependencies = TRUE)
+library(sybil)
+
+library(data.table)
+
+sybil::SYBIL_SETTINGS("SOLVER","cplexAPI") # (optional)
+
+# Load reconstructed models
+er <- readRDS("eure.RDS") # E. rectale
+bl <- readRDS("bilo.RDS") # B. longum
+
+# Small fix to D/L-Lactate secretion (*) and model names
+bl <- rmReact(bl, react = "EX_cpd00221_e0")
+er@mod_desc <- "E. rectale"
+bl@mod_desc <- "B. longum"
+
+# Construct the organism objects for BacArena simulations
+eure <- Bac(er)
+bilo <- Bac(bl)
+
+# Construct the arena size 10x10 grid cells
+arena <- Arena(n = 10, m = 10)
+
+# For each organism, populate randomly 2 grid cells in the Arena as 
+# 'starter culture'
+arena <- addOrg(arena, eure, amount = 2)
+arena <- addOrg(arena, bilo, amount = 2)
+
+# add substrates to arena
+arena_subs <- fread("gf_medium.csv") # same as gapfill medium
+arena_subs[, ex.rxn := paste0("EX_", compounds, "_e0")]
+
+arena <- addSubs(arena, smax = arena_subs$maxFlux, 
+                 mediac = arena_subs$ex.rxn, unit = "mM", addAnyway = T)
+				 
+# Remove acetate from initial substrate list to see effect of Cross-Feeding
+arena <- rmSubs(arena, mediac = "EX_cpd00029_e0") 
+
+
+# Simulation for 13 time steps
+CF_sim <- simEnv(arena,time=13, sec_obj = "mtf")
+
+# Plot levels of Acetate, Buyrate, and Lactate as well as growth
+par(mfrow=c(1,2))
+plotCurves2(CF_sim,legendpos = "topleft",
+            subs = c("cpd00211_e0","cpd00029_e0","cpd00159_e0"),
+            dict = list(cpd00211_e0 = "Butyrate", 
+                        cpd00029_e0 = "Acetate", 
+                        cpd00159_e0 = "Lactate"))
+						
+						
+# Lets get the exchange fluxs for each grid cell at time step 11
+dt.cf <- CF_sim@exchangeslist[[11]]
+
+# Limit output to Acetate, Butyrate, and Lactate
+dt.cf <- as.data.table(dt.cf[,c("species",
+                                "EX_cpd00029_e0",
+                                "EX_cpd00211_e0",
+                                "EX_cpd00159_e0")])
+
+# Rename column names (this is just aestetics)
+dt.cf <- dt.cf[,.(species, 
+                  Acetate = EX_cpd00029_e0, 
+                  Butyrate = EX_cpd00211_e0,
+                  Lactate = EX_cpd00159_e0)]
+
+# Wide-To-Long table transformation
+dt.cf <- melt(dt.cf, 
+              id.vars = "species", 
+              variable.name = "Metabolite", 
+              value.name = "Flux")
+dt.cf <- dt.cf[!is.na(Flux)] # rm NA entries (no exchange reaction in grid cell)
+
+# Sum exchanges for each species and metabolite over all 100 grid cells
+dt.cf[, .(summed.Flux = sum(Flux)), by = c("species","Metabolite")]
