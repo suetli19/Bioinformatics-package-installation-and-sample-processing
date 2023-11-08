@@ -32,5 +32,46 @@ gapseq medium -m ASM15438_genomic-draft.RDS -p ASM15438_genomic-all-Pathways.tbl
 gapseq fill -m ASM15438_genomic-draft.RDS -n ASM15438_genomic-medium.csv -c ASM15438_genomic-rxnWeights.RDS -g ASM15438_genomic-rxnXgenes.RDS -b 100
 
 
+#5. Flux-Balance-Analysis (FBA) and Flux-Variability-Analysis (FVA) prediction of metabolic by-products ​#Start R in terminal by just typing "R"
+#define a function, that automatically performs FBA with the minimalization of total flux (MTF) as secondary objective and FVA for all exchange reactions. The function also summarizes the results in a sorted data.table.
+
+getMetaboliteProduction <- function(mod) {
+  require(sybil)
+  require(data.table)
+
+  # MTF
+  sol.mtf <- optimizeProb(mod, algorithm = "mtf")
+  dt.mtf  <- data.table(ex = mod@react_id,
+                        mtf.flux = sol.mtf@fluxdist@fluxes[1:mod@react_num])
+  dt.mtf.tmp <- copy(dt.mtf[grepl("^EX_cpd[0-9]+_e0", ex)])
+
+  # FVA
+  sol.fv <- fluxVar(mod, react = mod@react_id[grep("^EX_cpd[0-9]+_e0", mod@react_id)])
+
+  dt <- data.table(ex       = rep(mod@react_id[grep("^EX_cpd[0-9]+_e0", mod@react_id)],2),
+                   rxn.name = rep(mod@react_name[grep("^EX_cpd[0-9]+_e0", mod@react_id)],2),
+                   dir      = c(rep("l",length(grep("^EX_cpd[0-9]+_e0", mod@react_id))),
+                                rep("u",length(grep("^EX_cpd[0-9]+_e0", mod@react_id)))),
+                   fv       = sol.fv@lp_obj)
+  dt <- dcast(dt, ex + rxn.name ~ dir, value.var = "fv")[(u>1e-6 & l >= 0)]
+
+  dt <- merge(dt, dt.mtf, by = "ex")
+
+  return(dt[order(-mtf.flux)])
+}
+
+#load sybil library
+library(sybil)
+
+#load the RDS file of the previous gapfilling output/constructed model for the genome/bacteria
+fp <- readRDS("ASM15438_genomic.RDS")
+
+#calculate metabolite production
+getMetaboliteProduction(fp)[1:10]
+
+
+
+
+
 
 
