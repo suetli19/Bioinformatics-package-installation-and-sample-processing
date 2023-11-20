@@ -66,12 +66,7 @@ library(sybil)
 #load the RDS file of the previous gapfilling output/constructed model for the genome/bacteria
 fp <- readRDS("ASM15438_genomic.RDS")
 
-#calculate metabolite production
+#calculate metabolite production and show top 10 predicted metabolic by-product
 getMetaboliteProduction(fp)[1:10]
-
-
-
-
-
 
 
