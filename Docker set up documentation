@@ -1,1 +1,97 @@
+#### install docker in ubuntu - https://www.simplilearn.com/tutorials/docker-tutorial/how-to-install-docker-on-ubuntu
+
+1. check system updates
+sudo apt-get update
+
+2. Install docker
+sudo apt install docker.io
+
+3. Install dependency packages
+sudo snap install docker
+
+4. Check version
+docker --version
+
+5. Pull an image
+sudo docker run hello-world
+
+6. Check if docker images has been pulled
+sudo docker images
+
+7. Display all containers pulled
+sudo docker ps -a
+
+8. Check containers in a running state - open new ubuntu terminal to check
+sudo docker ps
+
+9. Execute Docker command without Sudo
+sudo groupadd docker
+sudo usermod -aG docker $USER  ##then, restart computer
+
+10. If when pulling a docker image requires authorization/authentication, do login to docker hub
+username: suetli19
+password: 191902Hsl
+
+11. Pull jacky's docker
+docker pull jdwiyanto/biobakery4
+
+12. Create docker volume
+docker volume create --driver local --opt type=none --opt device=/home/suetli19/docker_metaphlan --opt o=bind docker_metaphlan
+
+13. Start docker container
+docker run -it --mount source=docker_metaphlan,destination=/home/suetli19/docker_metaphlan jdwiyanto/biobakery4
+
+14. Run docker/alternative way
+docker run image_name:tag_name
+
+15. Download files from docker container to local directory in a new ubuntu terminal
+docker cp charming_ellis:/usr/local/bin/kneaddata_database ./docker_metaphlan
+
+16. Build docker image from Dockerfile - the Dockerfile is taken from metaphlan4 github with some manual modification (https://github.com/biobakery/biobakery/blob/master/docker/metaphlan/Dockerfile)
+# for manual Dockerfile creation in future, we need to create a Dockerfile folder first, then cd Dockerfile and create a text file (Dockerfile) inside the folder
+mkdir Dockerfile
+cd Dockerfile
+touch Dockerfile
+vim Dockerfile
+[EDIT with Dockerfile commands]
+[EXIT editing when done]
+*press ESC key and then :wq
+
+
+# Synchronize time 
+sudo hwclock --hctosys
+
+# Create image (the image will be built in the local machine, so need to push it to docker repository)
+docker build -t meta4/sl1:1.0 .
+docker images #check if the image is built in the local machine
+docker run -it --mount source=Docker_meta,destination=/home/suetli19/Docker_meta meta4/sl1:1.0  #try running the image in local machine
+
+# Push image to docker repository (but first need to create repository in Docker hub)
+[LOG IN to docker hub and create repository - suetli19/metaphlan4)
+
+docker tag meta4/sl1:1.0 suetli19/metaphlan4
+
+docker push suetli19/mdockeretaphlan4
+
+docker images #check if the image is there
+
+#pull the image
+docker pull suetli19/metaphlan4
+
+# run the image
+docker run -it --mount source=Docker_meta,destination=/home/suetli19/Docker_meta suetli19/metaphlan4
+
+#inside the container, check the installation
+metaphlan --version
+which metaphlan
+which python
+
+## revise Dockerfile to updated version of metaphlan 4.0.6 (latest as of 28.06.23) --this image is built in HPC and then pushed to repository
+docker build -t suetli19/metaphlan4.0.6 .
+docker tag suetli19/metaphlan4.0.6 suetli19/metaphlan4.0.6
+docker push suetli19/metaphlan4.0.6
+docker images
+docker pull suetli19/metaphlan4.0.6  #pull this image to new environment/ubuntu
+
+
 
