@@ -1,1 +1,27 @@
+# bash script
+
+# cutadapt to keep only V4 region from all sequences
+## install https://cutadapt.readthedocs.io/en/stable/installation.html
+## template cutadapt to keep v4 region
+## explanation on trimming https://github.com/jdwiyanto/tutorials/blob/main/tutorial_trimmingsequence.txt
+
+515F=GTGCCAGCMGCCGCGGTAA
+805R=GACTACHVGGGTATCTAATCC
+515F2=TTACCGCGGCGCTGGCAC
+805R2=GGATTAGATACCCGTAGTC
+
+while read f; do cutadapt -g $515F -a $805R2 -G $805R -A $515F2 -j 8 -o <path/to/output_1.fastq> -p <path/to/output_2.fastq> <input_1.fastq> <input_2.fastq>; done < samplename.txt
+
+# fastp to remove adapters and low quality reads
+## install fastp https://github.com/OpenGene/fastp
+## automate fastp QC on all raw fastq files
+while read f; do fastp -i <read1.fastq> -I <read2.fastq> -o <read_filt_1.fastq> -O <read_filt_2.fastq>; done < samplelist.txt
+
+### sanity control here, check manually onf astp report that insert size (merged fwd and rev sequence) is in the range of ~250-255 bp. if not then something is wrong with the trimming process. ###
+
+# DADA2 to trim all sequences to V4 and infer ASVs
+## use from https://github.com/jdwiyanto/microbial_genomics_2021/blob/master/meta_analysis_dada2.R and edit accordingly. 
+## this step will require some manual QC, to ensure our trimmed length 
+
+
 
