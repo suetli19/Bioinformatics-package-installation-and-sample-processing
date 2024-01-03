@@ -1,1 +1,30 @@
+#### install wsl/ubuntu - https://learn.microsoft.com/en-us/windows/wsl/install
+wsl --install
+
+
+####install conda in - ubuntu https://learnubuntu.com/install-conda/
+
+1. Download installer script
+wget https://repo.anaconda.com/miniconda/Miniconda3-py39_4.12.0-Linux-x86_64.sh
+
+2. Execute the shell script
+chmod -v +x Miniconda*.sh
+
+3. Verify hash
+echo "78f39f9bae971ec1ae7969f0516017f2413f17796670f7040725dd83fcff5689 *Miniconda3-py39_4.12.0-Linux-x86_64.sh" | shasum --check
+
+4. Execute the installer
+./Miniconda3-py39_4.12.0-Linux-x86_64.sh
+
+
+5. Update PATH variable
+if ! [[ $PATH =~ "$HOME/miniconda3/bin" ]]; then
+  PATH="$HOME/miniconda3/bin:$PATH"
+fi
+
+source ~/.bashrc
+
+6. Verify installation
+conda list
+
 
